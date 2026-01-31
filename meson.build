@@ -12,16 +12,17 @@ plutovg_dep = dependency('plutovg',
 )
 
 lunasvg_sources = [
-    'source/lunasvg.cpp',
-    'source/graphics.cpp',
-    'source/svgelement.cpp',
-    'source/svggeometryelement.cpp',
-    'source/svgpaintelement.cpp',
-    'source/svgparser.cpp',
-    'source/svgproperty.cpp',
-    'source/svglayoutstate.cpp',
-    'source/svgrenderstate.cpp',
-    'source/svgtextelement.cpp'
+    'source/lunasvg/lunasvg.cpp',
+    'source/lunasvg/graphics.cpp',
+    'source/lunasvg/svgelement.cpp',
+    'source/lunasvg/svgfilterelement.cpp',
+    'source/lunasvg/svggeometryelement.cpp',
+    'source/lunasvg/svglayoutstate.cpp',
+    'source/lunasvg/svgpaintelement.cpp',
+    'source/lunasvg/svgparser.cpp',
+    'source/lunasvg/svgproperty.cpp',
+    'source/lunasvg/svgrenderstate.cpp',
+    'source/lunasvg/svgtextelement.cpp'
 ]
 
 lunasvg_compile_args = []
@@ -37,7 +38,7 @@ if get_option('load-system-fonts').disabled()
 endif
 
 lunasvg_lib = library('lunasvg', lunasvg_sources,
-    include_directories: include_directories('include', 'source'),
+    include_directories: include_directories('include', 'source/lunasvg'),
     dependencies: plutovg_dep,
     version: meson.project_version(),
     cpp_args: lunasvg_cpp_args,

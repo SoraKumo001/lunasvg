@@ -1,0 +1,16 @@
+{
+  "name": "lunasvg",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "https://github.com/sammycage/lunasvg",
+  "author": "SoraKumo <info@croud.jp>",
+  "license": "MIT",
+  "scripts": {
+    "test": "vitest",
+    "convert": "dist/convert.exe images images_output"
+  },
+  "devDependencies": {
+    "@types/node": "25.1.0",
+    "vitest": "4.0.18"
+  }
+}

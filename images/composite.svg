@@ -1,0 +1,9 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="comp">
+      <feFlood flood-color="red" flood-opacity="1" result="flood" />
+      <feComposite in="SourceGraphic" in2="flood" operator="arithmetic" k1="0" k2="0.5" k3="0.5" k4="0" />
+    </filter>
+  </defs>
+  <circle cx="100" cy="100" r="80" fill="blue" filter="url(#comp)" />
+</svg>

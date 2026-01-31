@@ -65,6 +65,8 @@ extern "C" {
 
 typedef struct plutovg_surface plutovg_surface_t;
 typedef struct plutovg_matrix plutovg_matrix_t;
+typedef struct lunasvg_document lunasvg_document_t;
+typedef struct lunasvg_bitmap lunasvg_bitmap_t;
 
 /**
  * @brief Callback for cleaning up resources.
@@ -125,6 +127,12 @@ LUNASVG_API bool lunasvg_add_font_face_from_file(const char* family, bool bold, 
 * @return `true` if the font face was successfully added to the cache, `false` otherwise.
 */
 LUNASVG_API bool lunasvg_add_font_face_from_data(const char* family, bool bold, bool italic, const void* data, size_t length, lunasvg_destroy_func_t destroy_func, void* closure);
+
+LUNASVG_API lunasvg_document_t* lunasvg_document_load_from_file(const char* filename);
+LUNASVG_API void lunasvg_document_destroy(lunasvg_document_t* document);
+LUNASVG_API lunasvg_bitmap_t* lunasvg_document_render_to_bitmap(lunasvg_document_t* document, uint32_t width, uint32_t height, uint32_t bgColor);
+LUNASVG_API void lunasvg_bitmap_destroy(lunasvg_bitmap_t* bitmap);
+LUNASVG_API bool lunasvg_bitmap_write_to_png(lunasvg_bitmap_t* bitmap, const char* filename);
 
 #ifdef __cplusplus
 }
