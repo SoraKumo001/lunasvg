@@ -1,5 +1,6 @@
 #include "renderstate.h"
 #include "filterelement.h"
+#include "property.h"
 
 namespace lunasvg {
 
@@ -32,11 +33,22 @@ void SVGRenderState::beginGroup(const SVGBlendInfo& blendInfo)
     auto requiresCompositing = blendInfo.requiresCompositing(m_mode);
     if(requiresCompositing) {
         auto boundingBox = m_currentTransform.mapRect(m_element->paintBoundingBox());
-        if(blendInfo.filter()) {
-            // Standard filter region is -10% to 120%
-            // For simplicity, just inflate the box by a reasonable amount.
-            // Ideally, we should use filter units and x,y,width,height attributes.
-            boundingBox.inflate(boundingBox.w * 0.2f, boundingBox.h * 0.2f);
+        if(auto filter = blendInfo.filter()) {
+            auto filterUnits = filter->filterUnits().value();
+            LengthContext context(filter, filterUnits);
+            auto x = context.valueForLength(filter->x());
+            auto y = context.valueForLength(filter->y());
+            auto w = context.valueForLength(filter->width());
+            auto h = context.valueForLength(filter->height());
+
+            Rect filterRect;
+            if(filterUnits == Units::ObjectBoundingBox) {
+                auto bbox = m_element->paintBoundingBox();
+                filterRect = Rect(bbox.x + x * bbox.w, bbox.y + y * bbox.h, w * bbox.w, h * bbox.h);
+            } else {
+                filterRect = Rect(x, y, w, h);
+            }
+            boundingBox = m_currentTransform.mapRect(filterRect);
         }
         boundingBox.intersect(m_canvas->extents());
         m_canvas = Canvas::create(boundingBox);

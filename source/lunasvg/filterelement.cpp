@@ -8,6 +8,19 @@
 
 namespace lunasvg {
 
+// Helper functions for sRGB <-> LinearRGB conversion
+static inline float toLinear(float c) {
+    return (c <= 0.04045f) ? (c / 12.92f) : std::pow((c + 0.055f) / 1.055f, 2.4f);
+}
+
+static inline float toSRGB(float c) {
+    return (c <= 0.0031308f) ? (c * 12.92f) : (1.055f * std::pow(c, 1.f / 2.4f) - 0.055f);
+}
+
+static inline uint8_t toByte(float v) {
+    return (uint8_t)std::round(std::clamp(v, 0.f, 1.f) * 255.f);
+}
+
 FilterContext::FilterContext(const SVGFilterElement* filter, const SVGElement* element, const SVGRenderState& state, const Canvas& sourceGraphic)
     : filter(filter)
     , element(element)
@@ -287,7 +300,7 @@ void SVGFeGaussianBlurElement::render(FilterContext& context) const
     else if(!m_stdDeviation.values().empty()) stdDevX = stdDevY = m_stdDeviation.values()[0];        
 
     if(stdDevX > 0 || stdDevY > 0) {
-        int r = static_cast<int>(stdDevX * 1.5f);
+        int r = static_cast<int>(stdDevX);
         boxBlur(dstBitmap, r);
         boxBlur(dstBitmap, r);
         boxBlur(dstBitmap, r);
@@ -479,20 +492,28 @@ void SVGFeCompositeElement::render(FilterContext& context) const
                 int i = y*stride + x*4;
                 float a1 = s1[i+3] / 255.f;
                 float a2 = s2[i+3] / 255.f;
-                
+
                 // Result alpha
                 float na = k1*a1*a2 + k2*a1 + k3*a2 + k4;
                 na = std::clamp(na, 0.f, 1.f);
-                
+
                 for(int c=0; c<3; ++c) {
-                    float i1 = s1[i+c] / 255.f;
-                    float i2 = s2[i+c] / 255.f;
-                    // Formula applied to premultiplied values results in premultiplied value
-                    float res = k1*i1*i2 + k2*i1 + k3*i2 + k4;
-                    // Clamping: 0 <= result <= alpha
-                    d[i+c] = (uint8_t)(std::clamp(res, 0.f, na) * 255);
+                    // Unpremultiply
+                    float c1 = (a1 > 0) ? (s1[i+c] / 255.f) / a1 : 0.f;
+                    float c2 = (a2 > 0) ? (s2[i+c] / 255.f) / a2 : 0.f;
+                    
+                    // Convert to linear space for computation
+                    float l1 = toLinear(c1);
+                    float l2 = toLinear(c2);
+                    
+                    // Apply arithmetic formula in linear space
+                    float lres = k1*l1*l2 + k2*l1 + k3*l2 + k4;
+                    
+                    // Convert back to sRGB and premultiply with rounding
+                    float res = toSRGB(std::clamp(lres, 0.f, 1.f));
+                    d[i+c] = toByte(res * na);
                 }
-                d[i+3] = (uint8_t)(na * 255);
+                d[i+3] = toByte(na);
             }
         }
         resultCanvas->drawImage(dst, input->extents(), Rect(0, 0, (float)w, (float)h), Transform::Identity);
@@ -589,20 +610,25 @@ void SVGFeColorMatrixElement::render(FilterContext& context) const
                     std::memset(&dstData[i], 0, 4);
                     continue;
                 }
-                float b = (srcData[i+0] / 255.f) / a;
-                float g = (srcData[i+1] / 255.f) / a;
-                float r = (srcData[i+2] / 255.f) / a;
+                
+                // Unpremultiply and convert to linear space
+                float b = toLinear((srcData[i+0] / 255.f) / a);
+                float g = toLinear((srcData[i+1] / 255.f) / a);
+                float r = toLinear((srcData[i+2] / 255.f) / a);
 
+                // Perform matrix multiplication in linear space
                 float nr = v[0]*r + v[1]*g + v[2]*b + v[3]*a + v[4];
                 float ng = v[5]*r + v[6]*g + v[7]*b + v[8]*a + v[9];
                 float nb = v[10]*r + v[11]*g + v[12]*b + v[13]*a + v[14];
                 float na = v[15]*r + v[16]*g + v[17]*b + v[18]*a + v[19];
 
                 na = std::clamp(na, 0.f, 1.f);
-                dstData[i+3] = (uint8_t)(na * 255);
-                dstData[i+2] = (uint8_t)(std::clamp(nr * na, 0.f, na) * 255);
-                dstData[i+1] = (uint8_t)(std::clamp(ng * na, 0.f, na) * 255);
-                dstData[i+0] = (uint8_t)(std::clamp(nb * na, 0.f, na) * 255);
+                
+                // Convert back to sRGB and premultiply with rounding
+                dstData[i+3] = toByte(na);
+                dstData[i+2] = toByte(toSRGB(std::clamp(nr, 0.f, 1.f)) * na);
+                dstData[i+1] = toByte(toSRGB(std::clamp(ng, 0.f, 1.f)) * na);
+                dstData[i+0] = toByte(toSRGB(std::clamp(nb, 0.f, 1.f)) * na);
             }
         }
     } else {
