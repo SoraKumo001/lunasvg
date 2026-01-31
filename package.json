@@ -7,10 +7,13 @@
   "license": "MIT",
   "scripts": {
     "test": "vitest",
-    "convert": "dist/convert.exe images images_output"
+    "convert": "dist/convert.exe images/svg images_output",
+    "convert:resvg": "tsx tools/convert.ts images/svg images/png"
   },
   "devDependencies": {
+    "@resvg/resvg-js": "2.6.2",
     "@types/node": "25.1.0",
+    "tsx": "4.21.0",
     "vitest": "4.0.18"
   }
 }
