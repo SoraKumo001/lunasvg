@@ -5,6 +5,9 @@
   "author": "SoraKumo <info@croud.jp>",
   "license": "MIT",
   "scripts": {
+    "build:configure": "cmake -B build .",
+    "build:make": "cmake --build build --config Release",
+    "build": "npm run build:configure && npm run build:make",
     "test": "vitest",
     "convert": "tsx tools/run_convert.ts images/svg images/png-fork && tsx tools/convert.ts images/svg images/png-resvg && tsx tools/convert_wasm.ts images/svg images/png-luna"
   },
