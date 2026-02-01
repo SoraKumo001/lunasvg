@@ -23,41 +23,6 @@ The following table compares the original SVG source with the output of `resvg` 
 | **Drop Shadow**          | ![svg-shadow](images/svg/drop-shadow.svg)  | ![resvg-shadow](images/png-resvg/drop-shadow.png)  | ![luna-wasm-shadow](images/png-luna/drop-shadow.png)  | ![luna-fork-shadow](images/png-fork/drop-shadow.png)  |
 | **Complex OGP**          |       ![svg-ogp](images/svg/ogp.svg)       |       ![resvg-ogp](images/png-resvg/ogp.png)       |       ![luna-wasm-ogp](images/png-luna/ogp.png)       |       ![luna-fork-ogp](images/png-fork/ogp.png)       |
 
-## Basic Usage (C++)
-
-```cpp
-#include <lunasvg.h>
-
-using namespace lunasvg;
-
-int main() {
-    auto document = Document::loadFromFile("input.svg");
-    if(document == nullptr) return -1;
-
-    auto bitmap = document->renderToBitmap();
-    if(bitmap.isNull()) return -1;
-
-    bitmap.writeToPng("output.png");
-    return 0;
-}
-```
-
-## Tools
-
-We provide multiple conversion tools for comparison and production use.
-
-### Batch Conversion
-
-```bash
-pnpm convert
-```
-
-This command runs all three backends:
-
-1.  **C++ Fork**: Generates images in `images/png-fork`.
-2.  **resvg**: Generates images in `images/png-resvg`.
-3.  **WASM Optimized**: Generates images in `images/png-luna` (via `wasm-image-optimization`).
-
 ## Testing
 
 This project uses `vitest` and `pixelmatch` to compare rendering output of the C++ fork against `resvg`.

@@ -36,14 +36,16 @@ std::shared_ptr<FilterImage> FilterImage::fromCanvas(const Canvas& canvas) {
     int stride = bitmap.stride();
     FilterPixel* dst = image->data();
     for(int y = 0; y < h; ++y) {
+        const uint8_t* src_row = data + y * stride;
+        FilterPixel* dst_row = dst + y * w;
         for(int x = 0; x < w; ++x) {
-            int i = y * stride + x * 4;
-            float a = data[i+3] / 255.f;
+            float a = src_row[x*4 + 3] / 255.f;
             if(a > 0) {
-                dst[y*w + x].r = toLinear((data[i+2] / 255.f) / a) * a;
-                dst[y*w + x].g = toLinear((data[i+1] / 255.f) / a) * a;
-                dst[y*w + x].b = toLinear((data[i+0] / 255.f) / a) * a;
-                dst[y*w + x].a = a;
+                float invA = 1.f / a;
+                dst_row[x].r = toLinear((src_row[x*4 + 2] / 255.f) * invA) * a;
+                dst_row[x].g = toLinear((src_row[x*4 + 1] / 255.f) * invA) * a;
+                dst_row[x].b = toLinear((src_row[x*4 + 0] / 255.f) * invA) * a;
+                dst_row[x].a = a;
             }
         }
     }
@@ -57,17 +59,19 @@ std::shared_ptr<Canvas> FilterImage::toCanvas(const Rect& extents) const {
     int stride = bitmap.stride();
     const FilterPixel* src = this->data();
     for(int y = 0; y < m_height; ++y) {
+        uint8_t* dst_row = data + y * stride;
+        const FilterPixel* src_row = src + y * m_width;
         for(int x = 0; x < m_width; ++x) {
-            int i = y * stride + x * 4;
-            const auto& p = src[y * m_width + x];
+            const auto& p = src_row[x];
             float a = std::clamp(p.a, 0.f, 1.f);
             if(a > 0.0001f) {
-                data[i+3] = toByte(a);
-                data[i+2] = toByte(toSRGB(std::clamp(p.r / a, 0.f, 1.f)) * a);
-                data[i+1] = toByte(toSRGB(std::clamp(p.g / a, 0.f, 1.f)) * a);
-                data[i+0] = toByte(toSRGB(std::clamp(p.b / a, 0.f, 1.f)) * a);
+                float invA = 1.f / a;
+                dst_row[x*4 + 3] = toByte(a);
+                dst_row[x*4 + 2] = toByte(toSRGB(std::clamp(p.r * invA, 0.f, 1.f)) * a);
+                dst_row[x*4 + 1] = toByte(toSRGB(std::clamp(p.g * invA, 0.f, 1.f)) * a);
+                dst_row[x*4 + 0] = toByte(toSRGB(std::clamp(p.b * invA, 0.f, 1.f)) * a);
             } else {
-                std::memset(&data[i], 0, 4);
+                std::memset(&dst_row[x*4], 0, 4);
             }
         }
     }
@@ -76,12 +80,14 @@ std::shared_ptr<Canvas> FilterImage::toCanvas(const Rect& extents) const {
 
 // --- FilterContext Implementation ---
 FilterContext::FilterContext(const SVGFilterElement* filter, const SVGElement* element, const SVGRenderState& state, const Canvas& sourceGraphic)
-    : filter(filter), element(element), state(state) 
+    : filter(filter), element(element), state(state)
 {
     this->sourceGraphic = FilterImage::fromCanvas(sourceGraphic);
     int w = sourceGraphic.width(), h = sourceGraphic.height();
     this->sourceAlpha = std::make_shared<FilterImage>(w, h);
-    for(int i = 0; i < w * h; ++i) this->sourceAlpha->data()[i] = {0, 0, 0, this->sourceGraphic->data()[i].a};
+    const FilterPixel* src = this->sourceGraphic->data();
+    FilterPixel* dst = this->sourceAlpha->data();
+    for(int i = 0; i < w * h; ++i) dst[i] = {0, 0, 0, src[i].a};      
     results.emplace("SourceGraphic", this->sourceGraphic);
     results.emplace("SourceAlpha", this->sourceAlpha);
     lastResult = this->sourceGraphic;
@@ -99,24 +105,42 @@ void FilterContext::addResult(const std::string& result, std::shared_ptr<FilterI
 }
 
 // --- Box Blur Implementation ---
-static void boxBlur(FilterPixel* src, FilterPixel* dst, int w, int h, int r, bool horizontal) {
+static void boxBlur(const FilterPixel* src, FilterPixel* dst, int w, int h, int r, bool horizontal) {
     if (r <= 0) return;
     float iarr = 1.f / (r + r + 1);
-    for(int i = 0; i < (horizontal ? h : w); i++) {
-        int head = horizontal ? i * w : i;
-        int ti = head;
-        FilterPixel fv = src[head], val = {(r + 1) * fv.r, (r + 1) * fv.g, (r + 1) * fv.b, (r + 1) * fv.a};
-        for(int j = 0; j < r; j++) {
-            const auto& p = src[head + std::min(j, (horizontal ? w : h) - 1) * (horizontal ? 1 : w)];
-            val.r += p.r; val.g += p.g; val.b += p.b; val.a += p.a;
+    if (horizontal) {
+        for(int y = 0; y < h; y++) {
+            const FilterPixel* src_row = src + y * w;
+            FilterPixel* dst_row = dst + y * w;
+            FilterPixel val = {0, 0, 0, 0};
+            FilterPixel fv = src_row[0];
+            FilterPixel lv = src_row[w - 1];
+            for(int j = 0; j < r; j++) { val.r += fv.r; val.g += fv.g; val.b += fv.b; val.a += fv.a; }
+            for(int j = 0; j <= r; j++) { const auto& p = src_row[j]; val.r += p.r; val.g += p.g; val.b += p.b; val.a += p.a; }
+            for(int x = 0; x < w; x++) {
+                dst_row[x] = {val.r * iarr, val.g * iarr, val.b * iarr, val.a * iarr};
+                int ri = x + r + 1;
+                const auto& p_ri = (ri < w) ? src_row[ri] : lv;
+                int li = x - r;
+                const auto& p_li = (li >= 0) ? src_row[li] : fv;
+                val.r += p_ri.r - p_li.r; val.g += p_ri.g - p_li.g; val.b += p_ri.b - p_li.b; val.a += p_ri.a - p_li.a;
+            }
         }
-        for(int j = 0; j < (horizontal ? w : h); j++) {
-            int cur_ri = head + std::min(j + r, (horizontal ? w : h) - 1) * (horizontal ? 1 : w);
-            int cur_li = head + std::max(j - r - 1, 0) * (horizontal ? 1 : w);
-            const auto& pri = src[cur_ri], &pli = src[cur_li];
-            if (j > 0) { val.r += pri.r - pli.r; val.g += pri.g - pli.g; val.b += pri.b - pli.b; val.a += pri.a - pli.a; }
-            dst[ti] = {val.r * iarr, val.g * iarr, val.b * iarr, val.a * iarr};
-            ti += (horizontal ? 1 : w);
+    } else {
+        for(int x = 0; x < w; x++) {
+            FilterPixel val = {0, 0, 0, 0};
+            FilterPixel fv = src[x];
+            FilterPixel lv = src[x + (h - 1) * w];
+            for(int j = 0; j < r; j++) { val.r += fv.r; val.g += fv.g; val.b += fv.b; val.a += fv.a; }
+            for(int j = 0; j <= r; j++) { const auto& p = src[x + j * w]; val.r += p.r; val.g += p.g; val.b += p.b; val.a += p.a; }
+            for(int y = 0; y < h; y++) {
+                dst[x + y * w] = {val.r * iarr, val.g * iarr, val.b * iarr, val.a * iarr};
+                int ri = y + r + 1;
+                const auto& p_ri = (ri < h) ? src[x + ri * w] : lv;
+                int li = y - r;
+                const auto& p_li = (li >= 0) ? src[x + li * w] : fv;
+                val.r += p_ri.r - p_li.r; val.g += p_ri.g - p_li.g; val.b += p_ri.b - p_li.b; val.a += p_ri.a - p_li.a;
+            }
         }
     }
 }
@@ -124,32 +148,39 @@ static void boxBlur(FilterPixel* src, FilterPixel* dst, int w, int h, int r, boo
 void SVGFeGaussianBlurElement::render(FilterContext& context) const {
     auto input = context.getInput(this->in().value()); if(!input) return;
     int w = input->width(), h = input->height();
-    auto result = std::make_shared<FilterImage>(w, h), temp = std::make_shared<FilterImage>(w, h);
-    std::memcpy(result->data(), input->data(), w * h * sizeof(FilterPixel));
     float stdDevX = 0, stdDevY = 0;
     if(!m_stdDeviation.values().empty()) {
         stdDevX = m_stdDeviation.values()[0];
         stdDevY = m_stdDeviation.values().size() > 1 ? m_stdDeviation.values()[1] : stdDevX;
     }
+    
+    auto current = std::make_shared<FilterImage>(w, h);
+    std::memcpy(current->data(), input->data(), w * h * sizeof(FilterPixel));
+
     if(stdDevX > 0 || stdDevY > 0) {
+        auto next = std::make_shared<FilterImage>(w, h);
         int rx = (int)std::floor(stdDevX * 3.f * std::sqrt(2.f * M_PI) / 4.f + 0.5f) / 2;
         int ry = (int)std::floor(stdDevY * 3.f * std::sqrt(2.f * M_PI) / 4.f + 0.5f) / 2;
         for(int i = 0; i < 3; i++) {
-            if(rx > 0) { boxBlur(result->data(), temp->data(), w, h, rx, true); std::memcpy(result->data(), temp->data(), w * h * sizeof(FilterPixel)); }
-            if(ry > 0) { boxBlur(result->data(), temp->data(), w, h, ry, false); std::memcpy(result->data(), temp->data(), w * h * sizeof(FilterPixel)); }
+            if(rx > 0) { boxBlur(current->data(), next->data(), w, h, rx, true); std::swap(current, next); }
+            if(ry > 0) { boxBlur(current->data(), next->data(), w, h, ry, false); std::swap(current, next); }
         }
     }
-    context.addResult(this->result().value(), result);
+    context.addResult(this->result().value(), current);
 }
 
 void SVGFeOffsetElement::render(FilterContext& context) const {
     auto input = context.getInput(this->in().value()); if(!input) return;
     int w = input->width(), h = input->height(); auto result = std::make_shared<FilterImage>(w, h);
     int ox = (int)std::round(this->dx().value()), oy = (int)std::round(this->dy().value());
+    const FilterPixel* src = input->data();
+    FilterPixel* dst = result->data();
     for(int y = 0; y < h; y++) {
+        int sy = y - oy;
+        if(sy < 0 || sy >= h) continue;
         for(int x = 0; x < w; x++) {
-            int sx = x - ox, sy = y - oy;
-            if(sx >= 0 && sx < w && sy >= 0 && sy < h) result->data()[y * w + x] = input->data()[sy * w + sx];
+            int sx = x - ox;
+            if(sx >= 0 && sx < w) dst[y * w + x] = src[sy * w + sx];      
         }
     }
     context.addResult(this->result().value(), result);
@@ -160,25 +191,31 @@ void SVGFeDropShadowElement::render(FilterContext& context) const {
     int w = input->width(), h = input->height();
     auto shadow = std::make_shared<FilterImage>(w, h);
     float ra = m_flood_opacity, rr = toLinear(m_flood_color.redF()) * ra, rg = toLinear(m_flood_color.greenF()) * ra, rb = toLinear(m_flood_color.blueF()) * ra;
-    for(int i = 0; i < w * h; i++) shadow->data()[i] = {rr, rg, rb, input->data()[i].a * ra};
+    const FilterPixel* input_data = input->data();
+    FilterPixel* shadow_data = shadow->data();
+    for(int i = 0; i < w * h; i++) shadow_data[i] = {rr, rg, rb, input_data[i].a * ra};
+    
     float stdDevX = 0, stdDevY = 0;
     if(!m_stdDeviation.values().empty()) { stdDevX = m_stdDeviation.values()[0]; stdDevY = m_stdDeviation.values().size() > 1 ? m_stdDeviation.values()[1] : stdDevX; }
     if(stdDevX > 0 || stdDevY > 0) {
         auto temp = std::make_shared<FilterImage>(w, h);
         int rx = (int)std::floor(stdDevX * 3.f * std::sqrt(2.f * M_PI) / 4.f + 0.5f) / 2, ry = (int)std::floor(stdDevY * 3.f * std::sqrt(2.f * M_PI) / 4.f + 0.5f) / 2;
         for(int i = 0; i < 3; i++) {
-            if(rx > 0) { boxBlur(shadow->data(), temp->data(), w, h, rx, true); std::memcpy(shadow->data(), temp->data(), w * h * sizeof(FilterPixel)); }
-            if(ry > 0) { boxBlur(shadow->data(), temp->data(), w, h, ry, false); std::memcpy(shadow->data(), temp->data(), w * h * sizeof(FilterPixel)); }
+            if(rx > 0) { boxBlur(shadow->data(), temp->data(), w, h, rx, true); std::swap(shadow, temp); }
+            if(ry > 0) { boxBlur(shadow->data(), temp->data(), w, h, ry, false); std::swap(shadow, temp); }
         }
     }
     auto result = std::make_shared<FilterImage>(w, h);
     int ox = (int)std::round(this->dx().value()), oy = (int)std::round(this->dy().value());
+    FilterPixel* dst = result->data();
+    shadow_data = shadow->data();
     for(int y = 0; y < h; y++) {
+        int sy = y - oy;
         for(int x = 0; x < w; x++) {
-            int sx = x - ox, sy = y - oy;
-            FilterPixel s = (sx >= 0 && sx < w && sy >= 0 && sy < h) ? shadow->data()[sy * w + sx] : FilterPixel{0,0,0,0};
-            const auto& g = input->data()[y * w + x];
-            result->data()[y * w + x] = { g.r + s.r * (1.f - g.a), g.g + s.g * (1.f - g.a), g.b + s.b * (1.f - g.a), g.a + s.a * (1.f - g.a) };
+            int sx = x - ox;
+            FilterPixel s = (sx >= 0 && sx < w && sy >= 0 && sy < h) ? shadow_data[sy * w + sx] : FilterPixel{0,0,0,0};
+            const auto& g = input_data[y * w + x];
+            dst[y * w + x] = { g.r + s.r * (1.f - g.a), g.g + s.g * (1.f - g.a), g.b + s.b * (1.f - g.a), g.a + s.a * (1.f - g.a) };
         }
     }
     context.addResult(this->result().value(), result);
@@ -191,8 +228,10 @@ void SVGFeMergeElement::render(FilterContext& context) const {
         if(auto node = toSVGElement(child); node && node->id() == ElementID::FeMergeNode) {
             auto input = context.getInput(static_cast<const SVGFeMergeNodeElement*>(node)->in().value());
             if(input) {
+                const FilterPixel* src = input->data();
+                FilterPixel* dst = result->data();
                 for(int i = 0; i < w * h; i++) {
-                    const auto& s = input->data()[i]; auto& d = result->data()[i];
+                    const auto& s = src[i]; auto& d = dst[i];
                     d.r = s.r + d.r * (1.f - s.a); d.g = s.g + d.g * (1.f - s.a); d.b = s.b + d.b * (1.f - s.a); d.a = s.a + d.a * (1.f - s.a);
                 }
             }
@@ -206,20 +245,25 @@ void SVGFeCompositeElement::render(FilterContext& context) const {
     if(!input || !input2) return;
     int w = input->width(), h = input->height(); auto result = std::make_shared<FilterImage>(w, h);
     float fk1 = m_k1.value(), fk2 = m_k2.value(), fk3 = m_k3.value(), fk4 = m_k4.value();
+    const FilterPixel* src1 = input->data();
+    const FilterPixel* src2 = input2->data();
+    FilterPixel* dst = result->data();
+    FECompositeOperator op = this->_operator().value();
     for(int i = 0; i < w * h; i++) {
-        const auto& s1 = input->data()[i], &s2 = input2->data()[i];
-        if(this->_operator().value() == FECompositeOperator::Arithmetic) {
+        const auto& s1 = src1[i], &s2 = src2[i];
+        if(op == FECompositeOperator::Arithmetic) {
             float na = std::clamp(fk1 * s1.a * s2.a + fk2 * s1.a + fk3 * s2.a + fk4, 0.f, 1.f);
             if(na > 0) {
-                float c1r = s1.a > 0 ? s1.r / s1.a : 0, c1g = s1.a > 0 ? s1.g / s1.a : 0, c1b = s1.a > 0 ? s1.b / s1.a : 0;
-                float c2r = s2.a > 0 ? s2.r / s2.a : 0, c2g = s2.a > 0 ? s2.g / s2.a : 0, c2b = s2.a > 0 ? s2.b / s2.a : 0;
-                result->data()[i] = { std::clamp(fk1*c1r*c2r + fk2*c1r + fk3*c2r + fk4, 0.f, 1.f) * na,
-                                       std::clamp(fk1*c1g*c2g + fk2*c1g + fk3*c2g + fk4, 0.f, 1.f) * na,
-                                       std::clamp(fk1*c1b*c2b + fk2*c1b + fk3*c2b + fk4, 0.f, 1.f) * na, na };
+                float invA1 = s1.a > 0 ? 1.f / s1.a : 0, invA2 = s2.a > 0 ? 1.f / s2.a : 0;
+                float c1r = s1.r * invA1, c1g = s1.g * invA1, c1b = s1.b * invA1;
+                float c2r = s2.r * invA2, c2g = s2.g * invA2, c2b = s2.b * invA2;
+                dst[i] = { std::clamp(fk1*c1r*c2r + fk2*c1r + fk3*c2r + fk4, 0.f, 1.f) * na,
+                           std::clamp(fk1*c1g*c2g + fk2*c1g + fk3*c2g + fk4, 0.f, 1.f) * na,
+                           std::clamp(fk1*c1b*c2b + fk2*c1b + fk3*c2b + fk4, 0.f, 1.f) * na, na };      
             }
         } else {
             float fa = 0, fb = 0;
-            switch(this->_operator().value()) {
+            switch(op) {
                 case FECompositeOperator::Over: fa = 1; fb = 1 - s1.a; break;
                 case FECompositeOperator::In: fa = s2.a; fb = 0; break;
                 case FECompositeOperator::Out: fa = 1 - s2.a; fb = 0; break;
@@ -227,7 +271,7 @@ void SVGFeCompositeElement::render(FilterContext& context) const {
                 case FECompositeOperator::Xor: fa = 1 - s2.a; fb = 1 - s1.a; break;
                 default: break;
             }
-            result->data()[i] = { s1.r * fa + s2.r * fb, s1.g * fa + s2.g * fb, s1.b * fa + s2.b * fb, s1.a * fa + s2.a * fb };
+            dst[i] = { s1.r * fa + s2.r * fb, s1.g * fa + s2.g * fb, s1.b * fa + s2.b * fb, s1.a * fa + s2.a * fb };
         }
     }
     context.addResult(this->result().value(), result);
@@ -236,25 +280,37 @@ void SVGFeCompositeElement::render(FilterContext& context) const {
 void SVGFeColorMatrixElement::render(FilterContext& context) const {
     auto input = context.getInput(this->in().value()); if(!input) return;
     int w = input->width(), h = input->height(); auto result = std::make_shared<FilterImage>(w, h);
-    std::vector<float> m; auto matrix_type = this->type().value();
-    if(matrix_type == ColorMatrixType::Matrix) { m = this->values().values(); if(m.size() < 20) m.assign(20, 0.f); }
-    else if(matrix_type == ColorMatrixType::Saturate) {
+    float m[20];
+    auto matrix_type = this->type().value();
+    if(matrix_type == ColorMatrixType::Matrix) { 
+        const auto& v = this->values().values();
+        for(int i = 0; i < 20; i++) m[i] = i < v.size() ? v[i] : 0.f;
+    } else if(matrix_type == ColorMatrixType::Saturate) {
         float s = this->values().values().empty() ? 1.f : this->values().values()[0];
-        m = { 0.213f+0.787f*s, 0.715f-0.715f*s, 0.072f-0.072f*s, 0, 0, 0.213f-0.213f*s, 0.715f+0.285f*s, 0.072f-0.072f*s, 0, 0, 
-              0.213f-0.213f*s, 0.715f-0.715f*s, 0.072f+0.928f*s, 0, 0, 0, 0, 0, 1, 0 };
+        float m_s[] = { 0.213f+0.787f*s, 0.715f-0.715f*s, 0.072f-0.072f*s, 0, 0, 0.213f-0.213f*s, 0.715f+0.285f*s, 0.072f-0.072f*s, 0, 0,
+                        0.213f-0.213f*s, 0.715f-0.715f*s, 0.072f+0.928f*s, 0, 0, 0, 0, 0, 1, 0 };
+        std::memcpy(m, m_s, 20 * sizeof(float));
     } else if(matrix_type == ColorMatrixType::HueRotate) {
-        float theta = (this->values().values().empty() ? 0.f : this->values().values()[0]) * (M_PI / 180.f);
+        float theta = (this->values().values().empty() ? 0.f : this->values().values()[0]) * (M_PI / 180.f);        
         float cosTheta = std::cos(theta), sinTheta = std::sin(theta);
-        m = { 0.213f + cosTheta*0.787f - sinTheta*0.213f, 0.715f - cosTheta*0.715f - sinTheta*0.715f, 0.072f - cosTheta*0.072f + sinTheta*0.928f, 0, 0,
-              0.213f - cosTheta*0.213f + sinTheta*0.143f, 0.715f + cosTheta*0.285f + sinTheta*0.140f, 0.072f - cosTheta*0.072f - sinTheta*0.283f, 0, 0,
-              0.213f - cosTheta*0.213f - sinTheta*0.787f, 0.715f - cosTheta*0.715f + sinTheta*0.715f, 0.072f + cosTheta*0.928f + sinTheta*0.072f, 0, 0,
-              0, 0, 0, 1, 0 };
-    } else if(matrix_type == ColorMatrixType::LuminanceToAlpha) { m = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.2125f, 0.7154f, 0.0721f, 0, 0 }; }
+        float m_h[] = { 0.213f + cosTheta*0.787f - sinTheta*0.213f, 0.715f - cosTheta*0.715f - sinTheta*0.715f, 0.072f - cosTheta*0.072f + sinTheta*0.928f, 0, 0,
+                        0.213f - cosTheta*0.213f + sinTheta*0.143f, 0.715f + cosTheta*0.285f + sinTheta*0.140f, 0.072f - cosTheta*0.072f - sinTheta*0.283f, 0, 0,
+                        0.213f - cosTheta*0.213f - sinTheta*0.787f, 0.715f - cosTheta*0.715f + std::sin(theta)*0.715f, 0.072f + cosTheta*0.928f + sinTheta*0.072f, 0, 0,
+                        0, 0, 0, 1, 0 };
+        std::memcpy(m, m_h, 20 * sizeof(float));
+    } else if(matrix_type == ColorMatrixType::LuminanceToAlpha) {
+        float m_l[] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.2125f, 0.7154f, 0.0721f, 0, 0 };
+        std::memcpy(m, m_l, 20 * sizeof(float));
+    }
+    
+    const FilterPixel* src = input->data();
+    FilterPixel* dst = result->data();
     for(int i = 0; i < w * h; i++) {
-        const auto& s = input->data()[i]; if(s.a <= 0) continue;
-        float r = s.r / s.a, g = s.g / s.a, b = s.b / s.a;
-        float nr = m[0]*r + m[1]*g + m[2]*b + m[3]*s.a + m[4], ng = m[5]*r + m[6]*g + m[7]*b + m[8]*s.a + m[9], nb = m[10]*r + m[11]*g + m[12]*b + m[13]*s.a + m[14], na = std::clamp(m[15]*r + m[16]*g + m[17]*b + m[18]*s.a + m[19], 0.f, 1.f);
-        result->data()[i] = { nr * na, ng * na, nb * na, na };
+        const auto& s = src[i]; if(s.a <= 0) continue;
+        float invA = 1.f / s.a;
+        float r = s.r * invA, g = s.g * invA, b = s.b * invA, a = s.a;
+        float nr = m[0]*r + m[1]*g + m[2]*b + m[3]*a + m[4], ng = m[5]*r + m[6]*g + m[7]*b + m[8]*a + m[9], nb = m[10]*r + m[11]*g + m[12]*b + m[13]*a + m[14], na = std::clamp(m[15]*r + m[16]*g + m[17]*b + m[18]*a + m[19], 0.f, 1.f);
+        dst[i] = { nr * na, ng * na, nb * na, na };
     }
     context.addResult(this->result().value(), result);
 }
@@ -263,22 +319,27 @@ void SVGFeBlendElement::render(FilterContext& context) const {
     auto input = context.getInput(this->in().value()), input2 = context.getInput(this->m_in2.value()); if(!input || !input2) return;
     int w = input->width(), h = input->height(); auto result = std::make_shared<FilterImage>(w, h);
     FEBlendMode blend_mode = this->mode().value();
+    const FilterPixel* src1 = input->data();
+    const FilterPixel* src2 = input2->data();
+    FilterPixel* dst = result->data();
     for(int i = 0; i < w * h; i++) {
-        const auto& s = input->data()[i], &d = input2->data()[i];
-        if(blend_mode == FEBlendMode::Normal) { result->data()[i] = { s.r + d.r * (1-s.a), s.g + d.g * (1-s.a), s.b + d.b * (1-s.a), s.a + d.a * (1-s.a) }; }
+        const auto& s = src1[i], &d = src2[i];
+        if(blend_mode == FEBlendMode::Normal) { dst[i] = { s.r + d.r * (1-s.a), s.g + d.g * (1-s.a), s.b + d.b * (1-s.a), s.a + d.a * (1-s.a) }; }
         else {
             float sa = s.a, da = d.a;
-            float r = 0, g = 0, b = 0;
-            auto blend = [&](float c1, float c2, float a1, float a2) {
-                float un_c1 = a1 > 0 ? c1 / a1 : 0, un_c2 = a2 > 0 ? c2 / a2 : 0;
+            float invSa = sa > 0 ? 1.f / sa : 0, invDa = da > 0 ? 1.f / da : 0;
+            float un_s_r = s.r * invSa, un_s_g = s.g * invSa, un_s_b = s.b * invSa;
+            float un_d_r = d.r * invDa, un_d_g = d.g * invDa, un_d_b = d.b * invDa;
+            
+            auto blend_fn = [&](float un_s, float un_d, float s_c, float d_c) {
                 float res = 0;
-                if(blend_mode == FEBlendMode::Multiply) res = un_c1 * un_c2;
-                else if(blend_mode == FEBlendMode::Screen) res = un_c1 + un_c2 - un_c1 * un_c2;
-                else if(blend_mode == FEBlendMode::Darken) res = std::min(un_c1, un_c2);
-                else if(blend_mode == FEBlendMode::Lighten) res = std::max(un_c1, un_c2);
-                return (res * sa * da + c1 * (1 - da) + c2 * (1 - sa));
+                if(blend_mode == FEBlendMode::Multiply) res = un_s * un_d;
+                else if(blend_mode == FEBlendMode::Screen) res = un_s + un_d - un_s * un_d;
+                else if(blend_mode == FEBlendMode::Darken) res = std::min(un_s, un_d);
+                else if(blend_mode == FEBlendMode::Lighten) res = std::max(un_s, un_d);
+                return (res * sa * da + s_c * (1 - da) + d_c * (1 - sa));
             };
-            result->data()[i] = { blend(s.r, d.r, sa, da), blend(s.g, d.g, sa, da), blend(s.b, d.b, sa, da), sa + da - sa * da };
+            dst[i] = { blend_fn(un_s_r, un_d_r, s.r, d.r), blend_fn(un_s_g, un_d_g, s.g, d.g), blend_fn(un_s_b, un_d_b, s.b, d.b), sa + da - sa * da };
         }
     }
     context.addResult(this->result().value(), result);
@@ -296,7 +357,7 @@ SVGFeMergeNodeElement::SVGFeMergeNodeElement(Document* d) : SVGElement(d, Elemen
 SVGFeMergeElement::SVGFeMergeElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeMerge) {}
 SVGFeFloodElement::SVGFeFloodElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeFlood) {}
 void SVGFeFloodElement::layoutElement(const SVGLayoutState& s) { m_flood_color = s.flood_color(); m_flood_opacity = s.flood_opacity(); SVGElement::layoutElement(s); }
-void SVGFeFloodElement::render(FilterContext& c) const { int w = c.sourceGraphic->width(), h = c.sourceGraphic->height(); auto r = std::make_shared<FilterImage>(w, h); float ra = m_flood_opacity, rr = toLinear(m_flood_color.redF()) * ra, rg = toLinear(m_flood_color.greenF()) * ra, rb = toLinear(m_flood_color.blueF()) * ra; for(int i=0; i<w*h; i++) r->data()[i] = {rr, rg, rb, ra}; c.addResult(this->result().value(), r); }
+void SVGFeFloodElement::render(FilterContext& c) const { int w = c.sourceGraphic->width(), h = c.sourceGraphic->height(); auto r = std::make_shared<FilterImage>(w, h); float ra = m_flood_opacity, rr = toLinear(m_flood_color.redF()) * ra, rg = toLinear(m_flood_color.greenF()) * ra, rb = toLinear(m_flood_color.blueF()) * ra; FilterPixel* dst = r->data(); for(int i=0; i<w*h; i++) dst[i] = {rr, rg, rb, ra}; c.addResult(this->result().value(), r); }
 SVGFeBlendElement::SVGFeBlendElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeBlend), m_in2(PropertyID::In2), m_mode(PropertyID::Mode, FEBlendMode::Normal) { addProperty(m_in2); addProperty(m_mode); }
 SVGFeCompositeElement::SVGFeCompositeElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeComposite), m_in2(PropertyID::In2), m_operator(PropertyID::Operator, FECompositeOperator::Over), m_k1(PropertyID::K1, 0.f), m_k2(PropertyID::K2, 0.f) , m_k3(PropertyID::K3, 0.f), m_k4(PropertyID::K4, 0.f) { addProperty(m_in2); addProperty(m_operator); addProperty(m_k1); addProperty(m_k2); addProperty(m_k3); addProperty(m_k4); }
 SVGFeColorMatrixElement::SVGFeColorMatrixElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeColorMatrix), m_type(PropertyID::Type, ColorMatrixType::Matrix), m_values(PropertyID::Values) { addProperty(m_type); addProperty(m_values); }
