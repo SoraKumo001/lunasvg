@@ -1,16 +1,19 @@
 {
-  "name": "lunasvg",
+  "name": "lunasvg-fork",
   "version": "1.0.0",
+  "description": "",
   "main": "index.js",
   "author": "SoraKumo <info@croud.jp>",
-  "license": "MIT",
   "scripts": {
     "build:configure": "cmake -B build .",
     "build:make": "cmake --build build --config Release",
     "build": "npm run build:configure && npm run build:make",
-    "test": "vitest",
-    "convert": "tsx tools/run_convert.ts images/svg images/png-fork && tsx tools/convert.ts images/svg images/png-resvg && tsx tools/convert_wasm.ts images/svg images/png-luna"
+    "gen:resvg": "tsx tools/convert.ts images/svg images/png-resvg",
+    "gen:luna": "tsx tools/run_convert.ts images/svg images/png-fork",
+    "test": "vitest run"
   },
+  "keywords": [],
+  "license": "ISC",
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
     "@types/node": "25.1.0",
