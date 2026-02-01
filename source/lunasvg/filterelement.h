@@ -2,23 +2,46 @@
 #define LUNASVG_FILTERELEMENT_H
 
 #include "element.h"
+#include <map>
+#include <vector>
 
 namespace lunasvg {
+
+struct FilterPixel {
+    float r, g, b, a;
+};
+
+class FilterImage {
+public:
+    FilterImage(int w, int h);
+    static std::shared_ptr<FilterImage> fromCanvas(const Canvas& canvas);
+    std::shared_ptr<Canvas> toCanvas(const Rect& extents) const;
+
+    int width() const { return m_width; }
+    int height() const { return m_height; }
+    FilterPixel* data() { return m_pixels.data(); }
+    const FilterPixel* data() const { return m_pixels.data(); }
+
+private:
+    int m_width;
+    int m_height;
+    std::vector<FilterPixel> m_pixels;
+};
 
 class FilterContext {
 public:
     FilterContext(const SVGFilterElement* filter, const SVGElement* element, const SVGRenderState& state, const Canvas& sourceGraphic);
 
-    std::shared_ptr<Canvas> getInput(const std::string& in);
-    void addResult(const std::string& result, std::shared_ptr<Canvas> image);
+    std::shared_ptr<FilterImage> getInput(const std::string& in);
+    void addResult(const std::string& result, std::shared_ptr<FilterImage> image);
 
     const SVGFilterElement* filter;
     const SVGElement* element;
     const SVGRenderState& state;
-    std::shared_ptr<Canvas> sourceGraphic;
-    std::shared_ptr<Canvas> sourceAlpha;
-    std::map<std::string, std::shared_ptr<Canvas>, std::less<>> results;
-    std::shared_ptr<Canvas> lastResult;
+    std::shared_ptr<FilterImage> sourceGraphic;
+    std::shared_ptr<FilterImage> sourceAlpha;
+    std::map<std::string, std::shared_ptr<FilterImage>, std::less<>> results;
+    std::shared_ptr<FilterImage> lastResult;
 };
 
 class SVGFilterElement final : public SVGElement {

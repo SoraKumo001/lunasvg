@@ -260,6 +260,19 @@ bool SVGEnumeration<FECompositeOperator>::parse(std::string_view input)
     return parseEnum(input, entries);
 }
 
+template<>
+bool SVGEnumeration<ColorMatrixType>::parse(std::string_view input)
+{
+    static const SVGEnumerationEntry<ColorMatrixType> entries[] = {
+        {ColorMatrixType::Matrix, "matrix"},
+        {ColorMatrixType::Saturate, "saturate"},
+        {ColorMatrixType::HueRotate, "hueRotate"},
+        {ColorMatrixType::LuminanceToAlpha, "luminanceToAlpha"}
+    };
+
+    return parseEnum(input, entries);
+}
+
 bool SVGAngle::parse(std::string_view input)
 {
     stripLeadingAndTrailingSpaces(input);
@@ -384,7 +397,7 @@ bool Length::parse(std::string_view input, LengthNegativeMode mode)
     return input.empty();
 }
 
-float LengthContext::valueForLength(const Length& length, LengthDirection direction) const
+float LengthContext::valueForLength(const Length& length, LengthDirection direction) const        
 {
     if(length.units() == LengthUnits::Percent) {
         if(m_units == Units::UserSpaceOnUse)
@@ -592,13 +605,14 @@ bool SVGPreserveAspectRatio::parse(std::string_view input)
     return true;
 }
 
-Rect SVGPreserveAspectRatio::getClipRect(const Rect& viewBoxRect, const Size& viewportSize) const    
+Rect SVGPreserveAspectRatio::getClipRect(const Rect& viewBoxRect, const Size& viewportSize) const 
+
 {
     assert(!viewBoxRect.isEmpty() && !viewportSize.isEmpty());
     auto xScale = viewportSize.w / viewBoxRect.w;
     auto yScale = viewportSize.h / viewBoxRect.h;
     if(m_alignType == AlignType::None) {
-        return Rect(viewBoxRect.x, viewBoxRect.y, viewportSize.w / xScale, viewportSize.h / yScale); 
+        return Rect(viewBoxRect.x, viewBoxRect.y, viewportSize.w / xScale, viewportSize.h / yScale);
     }
 
     auto scale = (m_meetOrSlice == MeetOrSlice::Meet) ? std::min(xScale, yScale) : std::max(xScale, yScale);
@@ -617,7 +631,7 @@ Rect SVGPreserveAspectRatio::getClipRect(const Rect& viewBoxRect, const Size& vi
     else if(m_alignType == AlignType::xMinYMax || m_alignType == AlignType::xMidYMax || m_alignType == AlignType::xMaxYMax)
         yOffset += (viewportSize.h - viewHeight);
 
-    return Rect(-xOffset / scale, -yOffset / scale, viewportSize.w / scale, viewportSize.h / scale); 
+    return Rect(-xOffset / scale, -yOffset / scale, viewportSize.w / scale, viewportSize.h / scale);
 }
 
 Transform SVGPreserveAspectRatio::getTransform(const Rect& viewBoxRect, const Size& viewportSize) const
@@ -626,7 +640,8 @@ Transform SVGPreserveAspectRatio::getTransform(const Rect& viewBoxRect, const Si
     auto xScale = viewportSize.w / viewBoxRect.w;
     auto yScale = viewportSize.h / viewBoxRect.h;
     if(m_alignType == AlignType::None) {
-        return Transform(xScale, 0, 0, yScale, -viewBoxRect.x * xScale, -viewBoxRect.y * yScale);    
+        return Transform(xScale, 0, 0, yScale, -viewBoxRect.x * xScale, -viewBoxRect.y * yScale); 
+
     }
 
     auto scale = (m_meetOrSlice == MeetOrSlice::Meet) ? std::min(xScale, yScale) : std::max(xScale, yScale);
@@ -685,7 +700,7 @@ void SVGPreserveAspectRatio::transformRect(Rect& dstRect, Rect& srcRect) const
             srcRect.w = viewSize.w * (imageSize.h / viewSize.h);
             if(m_alignType == AlignType::xMinYMid || m_alignType == AlignType::xMidYMid || m_alignType == AlignType::xMaxYMid)
                 srcRect.x += (imageSize.w - srcRect.w) * 0.5f;
-            else if(m_alignType == AlignType::xMaxYMin || m_alignType == AlignType::xMaxYMid || m_alignType == AlignType::xMaxYMax)
+            else if(m_alignType == AlignType::xMinYMax || m_alignType == AlignType::xMidYMax || m_alignType == AlignType::xMaxYMax)
                 srcRect.x += imageSize.w - srcRect.w;
         }
     }
