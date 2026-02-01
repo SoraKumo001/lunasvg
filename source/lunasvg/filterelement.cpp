@@ -106,9 +106,7 @@ static void boxBlur(FilterPixel* src, FilterPixel* dst, int w, int h, int r, boo
     for(int i = 0; i < (horizontal ? h : w); i++) {
         int head = horizontal ? i * w : i;
         int ti = head;
-        int li = head;
-        int ri = head + r * (horizontal ? 1 : w);
-        FilterPixel fv = src[head], lv = src[head + ((horizontal ? w : h) - 1) * (horizontal ? 1 : w)], val = {(r + 1) * fv.r, (r + 1) * fv.g, (r + 1) * fv.b, (r + 1) * fv.a};
+        FilterPixel fv = src[head], val = {(r + 1) * fv.r, (r + 1) * fv.g, (r + 1) * fv.b, (r + 1) * fv.a};
         for(int j = 0; j < r; j++) {
             const auto& p = src[head + std::min(j, (horizontal ? w : h) - 1) * (horizontal ? 1 : w)];
             val.r += p.r; val.g += p.g; val.b += p.b; val.a += p.a;
@@ -118,8 +116,7 @@ static void boxBlur(FilterPixel* src, FilterPixel* dst, int w, int h, int r, boo
             int cur_li = head + std::max(j - r - 1, 0) * (horizontal ? 1 : w);
             const auto& pri = src[cur_ri];
             const auto& pli = src[cur_li];
-            if (j == 0) { /* val is already initialized */ }
-            else {
+            if (j > 0) {
                 val.r += pri.r - pli.r; val.g += pri.g - pli.g; val.b += pri.b - pli.b; val.a += pri.a - pli.a;
             }
             dst[ti] = {val.r * iarr, val.g * iarr, val.b * iarr, val.a * iarr};
@@ -162,6 +159,46 @@ void SVGFeOffsetElement::render(FilterContext& context) const {
         for(int x = 0; x < w; x++) {
             int sx = x - ox, sy = y - oy;
             if(sx >= 0 && sx < w && sy >= 0 && sy < h) result->data()[y * w + x] = input->data()[sy * w + sx];
+        }
+    }
+    context.addResult(this->result().value(), result);
+}
+
+void SVGFeDropShadowElement::render(FilterContext& context) const {
+    auto input = context.getInput(this->in().value());
+    if(!input) return;
+    int w = input->width(), h = input->height();
+    
+    // 1. Create Shadow Alpha
+    auto shadow = std::make_shared<FilterImage>(w, h);
+    float ra = m_flood_opacity, rr = toLinear(m_flood_color.redF()) * ra, rg = toLinear(m_flood_color.greenF()) * ra, rb = toLinear(m_flood_color.blueF()) * ra;
+    for(int i = 0; i < w * h; i++) shadow->data()[i] = {rr, rg, rb, input->data()[i].a * ra};
+
+    // 2. Blur shadow
+    float stdDevX = 0, stdDevY = 0;
+    if(!m_stdDeviation.values().empty()) {
+        stdDevX = m_stdDeviation.values()[0];
+        stdDevY = m_stdDeviation.values().size() > 1 ? m_stdDeviation.values()[1] : stdDevX;
+    }
+    if(stdDevX > 0 || stdDevY > 0) {
+        auto temp = std::make_shared<FilterImage>(w, h);
+        int rx = (int)std::floor(stdDevX * 3.f * std::sqrt(2.f * M_PI) / 4.f + 0.5f) / 2;
+        int ry = (int)std::floor(stdDevY * 3.f * std::sqrt(2.f * M_PI) / 4.f + 0.5f) / 2;
+        for(int i = 0; i < 3; i++) {
+            if(rx > 0) { boxBlur(shadow->data(), temp->data(), w, h, rx, true); std::memcpy(shadow->data(), temp->data(), w * h * sizeof(FilterPixel)); }
+            if(ry > 0) { boxBlur(shadow->data(), temp->data(), w, h, ry, false); std::memcpy(shadow->data(), temp->data(), w * h * sizeof(FilterPixel)); }
+        }
+    }
+
+    // 3. Offset and Merge
+    auto result = std::make_shared<FilterImage>(w, h);
+    int ox = (int)std::round(this->dx().value()), oy = (int)std::round(this->dy().value());
+    for(int y = 0; y < h; y++) {
+        for(int x = 0; x < w; x++) {
+            int sx = x - ox, sy = y - oy;
+            FilterPixel s = (sx >= 0 && sx < w && sy >= 0 && sy < h) ? shadow->data()[sy * w + sx] : FilterPixel{0,0,0,0};
+            const auto& g = input->data()[y * w + x];
+            result->data()[y * w + x] = { g.r + s.r * (1.f - g.a), g.g + s.g * (1.f - g.a), g.b + s.b * (1.f - g.a), g.a + s.a * (1.f - g.a) };
         }
     }
     context.addResult(this->result().value(), result);
@@ -259,6 +296,8 @@ std::shared_ptr<Canvas> SVGFilterElement::applyFilter(const SVGRenderState& s, c
 SVGFilterPrimitiveElement::SVGFilterPrimitiveElement(Document* d, ElementID id) : SVGElement(d, id), m_in(PropertyID::In), m_result(PropertyID::Result), m_x(PropertyID::X, LengthDirection::Horizontal, LengthNegativeMode::Allow, 0.f, LengthUnits::Percent), m_y(PropertyID::Y, LengthDirection::Vertical, LengthNegativeMode::Allow, 0.f, LengthUnits::Percent), m_width(PropertyID::Width, LengthDirection::Horizontal, LengthNegativeMode::Forbid, 100.f, LengthUnits::Percent), m_height(PropertyID::Height, LengthDirection::Vertical, LengthNegativeMode::Forbid, 100.f, LengthUnits::Percent) { addProperty(m_in); addProperty(m_result); addProperty(m_x); addProperty(m_y); addProperty(m_width); addProperty(m_height); }
 SVGFeGaussianBlurElement::SVGFeGaussianBlurElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeGaussianBlur), m_stdDeviation(PropertyID::StdDeviation) { addProperty(m_stdDeviation); }
 SVGFeOffsetElement::SVGFeOffsetElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeOffset), m_dx(PropertyID::Dx, 0.f), m_dy(PropertyID::Dy, 0.f) { addProperty(m_dx); addProperty(m_dy); }
+SVGFeDropShadowElement::SVGFeDropShadowElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeDropShadow), m_stdDeviation(PropertyID::StdDeviation), m_dx(PropertyID::Dx, 2.f), m_dy(PropertyID::Dy, 2.f) { addProperty(m_stdDeviation); addProperty(m_dx); addProperty(m_dy); }
+void SVGFeDropShadowElement::layoutElement(const SVGLayoutState& s) { m_flood_color = s.flood_color(); m_flood_opacity = s.flood_opacity(); SVGElement::layoutElement(s); }
 SVGFeMergeNodeElement::SVGFeMergeNodeElement(Document* d) : SVGElement(d, ElementID::FeMergeNode), m_in(PropertyID::In) { addProperty(m_in); }
 SVGFeMergeElement::SVGFeMergeElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeMerge) {}
 SVGFeFloodElement::SVGFeFloodElement(Document* d) : SVGFilterPrimitiveElement(d, ElementID::FeFlood) {}

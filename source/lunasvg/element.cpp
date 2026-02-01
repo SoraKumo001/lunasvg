@@ -25,6 +25,7 @@ ElementID elementid(const std::string_view& name)
         {"feBlend", ElementID::FeBlend},
         {"feColorMatrix", ElementID::FeColorMatrix},
         {"feComposite", ElementID::FeComposite},
+        {"feDropShadow", ElementID::FeDropShadow},
         {"feFlood", ElementID::FeFlood},
         {"feGaussianBlur", ElementID::FeGaussianBlur},
         {"feMerge", ElementID::FeMerge},
@@ -103,6 +104,8 @@ std::unique_ptr<SVGElement> SVGElement::create(Document* document, ElementID id)
         return std::make_unique<SVGFeGaussianBlurElement>(document);
     case ElementID::FeOffset:
         return std::make_unique<SVGFeOffsetElement>(document);
+    case ElementID::FeDropShadow:
+        return std::make_unique<SVGFeDropShadowElement>(document);
     case ElementID::FeMerge:
         return std::make_unique<SVGFeMergeElement>(document);
     case ElementID::FeMergeNode:
@@ -319,7 +322,8 @@ Rect SVGElement::fillBoundingBox() const
     auto fillBoundingBox = Rect::Invalid;
     for(const auto& child : m_children) {
         if(auto element = toSVGElement(child); element && !element->isHiddenElement()) {
-            fillBoundingBox.unite(element->localTransform().mapRect(element->fillBoundingBox()));    
+            fillBoundingBox.unite(element->localTransform().mapRect(element->fillBoundingBox())); 
+
         }
     }
 
@@ -633,7 +637,7 @@ SVGGraphicsElement::SVGGraphicsElement(Document* document, ElementID id)
     addProperty(m_transform);
 }
 
-SVGPaintServer SVGGraphicsElement::getPaintServer(const Paint& paint, float opacity) const
+SVGPaintServer SVGGraphicsElement::getPaintServer(const Paint& paint, float opacity) const        
 {
     if(paint.isNone())
         return SVGPaintServer();
@@ -653,7 +657,7 @@ StrokeData SVGGraphicsElement::getStrokeData(const SVGLayoutState& state) const
 
     DashArray dashArray;
     for(const auto& dash : state.stroke_dasharray())
-        dashArray.push_back(lengthContext.valueForLength(dash, LengthDirection::Diagonal));
+        dashArray.push_back(lengthContext.valueForLength(dash, LengthDirection::Diagonal));       
     strokeData.setDashArray(std::move(dashArray));
     return strokeData;
 }
@@ -873,7 +877,8 @@ std::unique_ptr<SVGElement> SVGUseElement::cloneTargetElement(SVGElement* target
     newElement->setAttributes(targetElement->attributes());
     if(newElement->id() == ElementID::Svg) {
         for(const auto& attribute : attributes()) {
-            if(attribute.id() == PropertyID::Width || attribute.id() == PropertyID::Height) {        
+            if(attribute.id() == PropertyID::Width || attribute.id() == PropertyID::Height) {     
+
                 newElement->setAttribute(attribute);
             }
         }
@@ -1041,7 +1046,7 @@ Transform SVGMarkerElement::markerTransform(const Point& origin, float angle, fl
     return transform * viewTransform;
 }
 
-Rect SVGMarkerElement::markerBoundingBox(const Point& origin, float angle, float strokeWidth) const  
+Rect SVGMarkerElement::markerBoundingBox(const Point& origin, float angle, float strokeWidth) const
 {
     return markerTransform(origin, angle, strokeWidth).mapRect(paintBoundingBox());
 }
@@ -1089,7 +1094,8 @@ void SVGClipPathElement::applyClipMask(SVGRenderState& state) const
 {
     if(state.hasCycleReference(this))
         return;
-    auto maskImage = Canvas::create(state.currentTransform().mapRect(state.paintBoundingBox()));     
+    auto maskImage = Canvas::create(state.currentTransform().mapRect(state.paintBoundingBox()));  
+
     auto currentTransform = state.currentTransform() * localTransform();
     if(m_clipPathUnits.value() == Units::ObjectBoundingBox) {
         auto bbox = state.fillBoundingBox();
@@ -1097,7 +1103,8 @@ void SVGClipPathElement::applyClipMask(SVGRenderState& state) const
         currentTransform.scale(bbox.w, bbox.h);
     }
 
-    SVGRenderState newState(this, &state, currentTransform, SVGRenderMode::Clipping, maskImage);     
+    SVGRenderState newState(this, &state, currentTransform, SVGRenderMode::Clipping, maskImage);  
+
     renderChildren(newState);
     if(clipper()) {
         clipper()->applyClipMask(newState);
@@ -1230,8 +1237,10 @@ void SVGMaskElement::applyMask(SVGRenderState& state) const
 {
     if(state.hasCycleReference(this))
         return;
-    auto maskImage = Canvas::create(state.currentTransform().mapRect(state.paintBoundingBox()));     
-    maskImage->clipRect(maskRect(state.element()), FillRule::NonZero, state.currentTransform());     
+    auto maskImage = Canvas::create(state.currentTransform().mapRect(state.paintBoundingBox()));  
+
+    maskImage->clipRect(maskRect(state.element()), FillRule::NonZero, state.currentTransform());  
+
 
     auto currentTransform = state.currentTransform();
     if(m_maskContentUnits.value() == Units::ObjectBoundingBox) {
@@ -1240,7 +1249,8 @@ void SVGMaskElement::applyMask(SVGRenderState& state) const
         currentTransform.scale(bbox.w, bbox.h);
     }
 
-    SVGRenderState newState(this, &state, currentTransform, SVGRenderMode::Painting, maskImage);     
+    SVGRenderState newState(this, &state, currentTransform, SVGRenderMode::Painting, maskImage);  
+
     renderChildren(newState);
     if(clipper())
         clipper()->applyClipMask(newState);

@@ -90,6 +90,7 @@ enum class ElementID : uint8_t {
     Ellipse,
     FeGaussianBlur,
     FeOffset,
+    FeDropShadow,
     FeMerge,
     FeMergeNode,
     FeFlood,
@@ -271,7 +272,7 @@ public:
     SVGFitToViewBox(SVGElement* element);
 
     const SVGRect& viewBox() const { return m_viewBox; }
-    const SVGPreserveAspectRatio& preserveAspectRatio() const { return m_preserveAspectRatio; }
+    const SVGPreserveAspectRatio& preserveAspectRatio() const { return m_preserveAspectRatio; }   
     Transform viewBoxToViewTransform(const Size& viewportSize) const;
     Rect getClipRect(const Size& viewportSize) const;
 
@@ -299,7 +300,7 @@ public:
         : m_element(element), m_color(color), m_opacity(opacity)
     {}
 
-    bool isRenderable() const { return m_opacity > 0.f && (m_element || m_color.alpha() > 0); }
+    bool isRenderable() const { return m_opacity > 0.f && (m_element || m_color.alpha() > 0); }   
 
     const SVGPaintElement* element() const { return m_element; }
     const Color& color() const { return  m_color; }
@@ -401,7 +402,7 @@ public:
     const SVGLength& y() const { return m_y; }
     const SVGLength& width() const { return m_width; }
     const SVGLength& height() const { return m_height; }
-    const SVGPreserveAspectRatio& preserveAspectRatio() const { return m_preserveAspectRatio; }
+    const SVGPreserveAspectRatio& preserveAspectRatio() const { return m_preserveAspectRatio; }   
     const Bitmap& image() const { return m_image; }
 
     Rect fillBoundingBox() const final;

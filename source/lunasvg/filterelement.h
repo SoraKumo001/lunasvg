@@ -115,6 +115,25 @@ private:
     SVGNumber m_dy;
 };
 
+class SVGFeDropShadowElement final : public SVGFilterPrimitiveElement {
+public:
+    SVGFeDropShadowElement(Document* document);
+
+    const SVGNumberList& stdDeviation() const { return m_stdDeviation; }
+    const SVGNumber& dx() const { return m_dx; }
+    const SVGNumber& dy() const { return m_dy; }
+
+    void layoutElement(const SVGLayoutState& state) final;
+    void render(FilterContext& context) const final;
+
+private:
+    SVGNumberList m_stdDeviation;
+    SVGNumber m_dx;
+    SVGNumber m_dy;
+    Color m_flood_color = Color::Black;
+    float m_flood_opacity = 1.f;
+};
+
 class SVGFeMergeNodeElement final : public SVGElement {
 public:
     SVGFeMergeNodeElement(Document* document);
