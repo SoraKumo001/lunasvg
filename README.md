@@ -15,13 +15,13 @@ This is a fork of the original [sammycage/lunasvg](https://github.com/sammycage/
 
 The following table compares the original SVG source with the output of `resvg` (industry standard) and our high-precision C++ fork, along with a WASM-optimized version.
 
-| Filter Example           |                Original SVG                |                  resvg (Standard)                  |                    LunaSVG (Fork)                     |                  LunaSVG (Original)                   |
+| Filter Example           |                Original SVG                |                  resvg (Standard)                  |                  LunaSVG (Original)                   |                    LunaSVG (Fork)                     |
 | :----------------------- | :----------------------------------------: | :------------------------------------------------: | :---------------------------------------------------: | :---------------------------------------------------: |
-| **Gaussian Blur**        |      ![svg-blur](images/svg/blur.svg)      |      ![resvg-blur](images/png-resvg/blur.png)      |      ![luna-fork-blur](images/png-fork/blur.png)      |      ![luna-wasm-blur](images/png-luna/blur.png)      |
-| **Color Matrix**         | ![svg-matrix](images/svg/color-matrix.svg) | ![resvg-matrix](images/png-resvg/color-matrix.png) | ![luna-fork-matrix](images/png-fork/color-matrix.png) | ![luna-wasm-matrix](images/png-luna/color-matrix.png) |
-| **Arithmetic Composite** |   ![svg-comp](images/svg/composite.svg)    |   ![resvg-comp](images/png-resvg/composite.png)    |   ![luna-fork-comp](images/png-fork/composite.png)    |   ![luna-wasm-comp](images/png-luna/composite.png)    |
-| **Drop Shadow**          | ![svg-shadow](images/svg/drop-shadow.svg)  | ![resvg-shadow](images/png-resvg/drop-shadow.png)  | ![luna-fork-shadow](images/png-fork/drop-shadow.png)  | ![luna-wasm-shadow](images/png-luna/drop-shadow.png)  |
-| **Complex OGP**          |       ![svg-ogp](images/svg/ogp.svg)       |       ![resvg-ogp](images/png-resvg/ogp.png)       |       ![luna-fork-ogp](images/png-fork/ogp.png)       |       ![luna-wasm-ogp](images/png-luna/ogp.png)       |
+| **Gaussian Blur**        |      ![svg-blur](images/svg/blur.svg)      |      ![resvg-blur](images/png-resvg/blur.png)      |      ![luna-wasm-blur](images/png-luna/blur.png)      |      ![luna-fork-blur](images/png-fork/blur.png)      |
+| **Color Matrix**         | ![svg-matrix](images/svg/color-matrix.svg) | ![resvg-matrix](images/png-resvg/color-matrix.png) | ![luna-wasm-matrix](images/png-luna/color-matrix.png) | ![luna-fork-matrix](images/png-fork/color-matrix.png) |
+| **Arithmetic Composite** |   ![svg-comp](images/svg/composite.svg)    |   ![resvg-comp](images/png-resvg/composite.png)    |   ![luna-wasm-comp](images/png-luna/composite.png)    |   ![luna-fork-comp](images/png-fork/composite.png)    |
+| **Drop Shadow**          | ![svg-shadow](images/svg/drop-shadow.svg)  | ![resvg-shadow](images/png-resvg/drop-shadow.png)  | ![luna-wasm-shadow](images/png-luna/drop-shadow.png)  | ![luna-fork-shadow](images/png-fork/drop-shadow.png)  |
+| **Complex OGP**          |       ![svg-ogp](images/svg/ogp.svg)       |       ![resvg-ogp](images/png-resvg/ogp.png)       |       ![luna-wasm-ogp](images/png-luna/ogp.png)       |       ![luna-fork-ogp](images/png-fork/ogp.png)       |
 
 ## Basic Usage (C++)
 
