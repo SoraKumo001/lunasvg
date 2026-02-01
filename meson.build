@@ -14,15 +14,15 @@ plutovg_dep = dependency('plutovg',
 lunasvg_sources = [
     'source/lunasvg/lunasvg.cpp',
     'source/lunasvg/graphics.cpp',
-    'source/lunasvg/svgelement.cpp',
-    'source/lunasvg/svgfilterelement.cpp',
-    'source/lunasvg/svggeometryelement.cpp',
-    'source/lunasvg/svglayoutstate.cpp',
-    'source/lunasvg/svgpaintelement.cpp',
-    'source/lunasvg/svgparser.cpp',
-    'source/lunasvg/svgproperty.cpp',
-    'source/lunasvg/svgrenderstate.cpp',
-    'source/lunasvg/svgtextelement.cpp'
+    'source/lunasvg/element.cpp',
+    'source/lunasvg/filterelement.cpp',
+    'source/lunasvg/geometryelement.cpp',
+    'source/lunasvg/layoutstate.cpp',
+    'source/lunasvg/paintelement.cpp',
+    'source/lunasvg/parser.cpp',
+    'source/lunasvg/property.cpp',
+    'source/lunasvg/renderstate.cpp',
+    'source/lunasvg/textelement.cpp'
 ]
 
 lunasvg_compile_args = []
@@ -54,10 +54,6 @@ lunasvg_dep = declare_dependency(
 
 meson.override_dependency('lunasvg', lunasvg_dep)
 install_headers('include/lunasvg.h', subdir: 'lunasvg')
-
-if not get_option('examples').disabled()
-    subdir('examples')
-endif
 
 pkgmod = import('pkgconfig')
 pkgmod.generate(lunasvg_lib,

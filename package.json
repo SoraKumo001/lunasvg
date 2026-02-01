@@ -7,8 +7,7 @@
   "license": "MIT",
   "scripts": {
     "test": "vitest",
-    "convert": "dist/convert.exe images/svg images_output",
-    "convert:resvg": "tsx tools/convert.ts images/svg images/png"
+    "convert": "tsx tools/run_convert.ts images/svg images/png-luna && tsx tools/convert.ts images/svg images/png-resvg"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",

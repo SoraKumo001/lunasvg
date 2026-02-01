@@ -3,5 +3,4 @@
 !/subprojects/*.wrap
 *.user
 node_modules
-images_output
 dist

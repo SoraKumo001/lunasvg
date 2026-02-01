@@ -203,11 +203,6 @@ install(FILES "${CMAKE_CURRENT_BINARY_DIR}/lunasvg.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
 )
 
-option(LUNASVG_BUILD_EXAMPLES "Build examples" ON)
-if(LUNASVG_BUILD_EXAMPLES)
-    add_subdirectory(examples)
-endif()
-
 add_executable(convert tools/convert.cpp)
 target_link_libraries(convert PRIVATE lunasvg)
 set_target_properties(convert PROPERTIES CXX_STANDARD 17)
