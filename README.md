@@ -13,15 +13,15 @@ This is a fork of the original [sammycage/lunasvg](https://github.com/sammycage/
 
 ## Comparison: SVG vs. resvg vs. LunaSVG (This Fork)
 
-The following table compares the original SVG source with the output of `resvg` (industry standard) and `LunaSVG` with our new high-precision pipeline.
+The following table compares the original SVG source with the output of `resvg` (industry standard) and our high-precision C++ fork, along with a WASM-optimized version.
 
-| Filter Example           |            Original SVG Source             |                  resvg (Standard)                  |               LunaSVG (This Fork)                |
-| :----------------------- | :----------------------------------------: | :------------------------------------------------: | :----------------------------------------------: |
-| **Gaussian Blur**        |      ![svg-blur](images/svg/blur.svg)      |      ![resvg-blur](images/png-resvg/blur.png)      |      ![luna-blur](images/png-luna/blur.png)      |
-| **Color Matrix**         | ![svg-matrix](images/svg/color-matrix.svg) | ![resvg-matrix](images/png-resvg/color-matrix.png) | ![luna-matrix](images/png-luna/color-matrix.png) |
-| **Arithmetic Composite** |   ![svg-comp](images/svg/composite.svg)    |   ![resvg-comp](images/png-resvg/composite.png)    |   ![luna-comp](images/png-luna/composite.png)    |
-| **Drop Shadow**          | ![svg-shadow](images/svg/drop-shadow.svg)  | ![resvg-shadow](images/png-resvg/drop-shadow.png)  | ![luna-shadow](images/png-luna/drop-shadow.png)  |
-| **Complex OGP**          |       ![svg-ogp](images/svg/ogp.svg)       |       ![resvg-ogp](images/png-resvg/ogp.png)       |       ![luna-ogp](images/png-luna/ogp.png)       |
+| Filter Example           |                Original SVG                |                  resvg (Standard)                  |                    LunaSVG (Fork)                     |                  LunaSVG (Original)                   |
+| :----------------------- | :----------------------------------------: | :------------------------------------------------: | :---------------------------------------------------: | :---------------------------------------------------: |
+| **Gaussian Blur**        |      ![svg-blur](images/svg/blur.svg)      |      ![resvg-blur](images/png-resvg/blur.png)      |      ![luna-fork-blur](images/png-fork/blur.png)      |      ![luna-wasm-blur](images/png-luna/blur.png)      |
+| **Color Matrix**         | ![svg-matrix](images/svg/color-matrix.svg) | ![resvg-matrix](images/png-resvg/color-matrix.png) | ![luna-fork-matrix](images/png-fork/color-matrix.png) | ![luna-wasm-matrix](images/png-luna/color-matrix.png) |
+| **Arithmetic Composite** |   ![svg-comp](images/svg/composite.svg)    |   ![resvg-comp](images/png-resvg/composite.png)    |   ![luna-fork-comp](images/png-fork/composite.png)    |   ![luna-wasm-comp](images/png-luna/composite.png)    |
+| **Drop Shadow**          | ![svg-shadow](images/svg/drop-shadow.svg)  | ![resvg-shadow](images/png-resvg/drop-shadow.png)  | ![luna-fork-shadow](images/png-fork/drop-shadow.png)  | ![luna-wasm-shadow](images/png-luna/drop-shadow.png)  |
+| **Complex OGP**          |       ![svg-ogp](images/svg/ogp.svg)       |       ![resvg-ogp](images/png-resvg/ogp.png)       |       ![luna-fork-ogp](images/png-fork/ogp.png)       |       ![luna-wasm-ogp](images/png-luna/ogp.png)       |
 
 ## Basic Usage (C++)
 
@@ -44,21 +44,23 @@ int main() {
 
 ## Tools
 
-### SVG to PNG Converter
+We provide multiple conversion tools for comparison and production use.
 
-A batch conversion tool is provided in `tools/run_convert.ts`. It uses a cross-platform wrapper to run the high-precision C++ backend.
-
-**Execution:**
+### Batch Conversion
 
 ```bash
 pnpm convert
 ```
 
-This command converts SVG files in `images/svg` to PNG in `images/png-luna` and `images/png-resvg`.
+This command runs all three backends:
+
+1.  **C++ Fork**: Generates images in `images/png-fork`.
+2.  **resvg**: Generates images in `images/png-resvg`.
+3.  **WASM Optimized**: Generates images in `images/png-luna` (via `wasm-image-optimization`).
 
 ## Testing
 
-This project uses `vitest` and `pixelmatch` to compare rendering output against `resvg`.
+This project uses `vitest` and `pixelmatch` to compare rendering output of the C++ fork against `resvg`.
 
 **Run Tests:**
 
@@ -66,7 +68,7 @@ This project uses `vitest` and `pixelmatch` to compare rendering output against 
 pnpm test
 ```
 
-This will generate diff percentages for all sample images. Our goal is < 0.2% difference for most complex filters.
+This will generate diff percentages. Our goal is < 0.2% difference for most complex filters.
 
 ## Installation
 

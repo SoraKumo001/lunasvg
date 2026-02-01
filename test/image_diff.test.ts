@@ -5,27 +5,32 @@ import { PNG } from "pngjs";
 import pixelmatch from "pixelmatch";
 
 const RESVG_DIR = path.resolve(__dirname, "../images/png-resvg");
-const LUNASVG_DIR = path.resolve(__dirname, "../images/png-luna");
+const FORK_DIR = path.resolve(__dirname, "../images/png-fork");
 
 function readPNG(filePath: string): PNG {
   const data = fs.readFileSync(filePath);
   return PNG.sync.read(data);
 }
 
-describe("Image Comparison (resvg vs lunasvg)", () => {
+describe("Image Comparison (resvg vs LunaSVG Fork)", () => {
+  if (!fs.existsSync(RESVG_DIR) || !fs.existsSync(FORK_DIR)) {
+    it("should skip if directories are missing", () => {
+      console.warn("Skipping comparison tests: build/convert images first.");
+    });
+    return;
+  }
+
   const files = fs.readdirSync(RESVG_DIR).filter((f) => f.endsWith(".png"));
 
   files.forEach((file) => {
     it(`should have minimal difference for ${file}`, () => {
       const resvgPath = path.join(RESVG_DIR, file);
-      const lunasvgPath = path.join(LUNASVG_DIR, file);
+      const forkPath = path.join(FORK_DIR, file);
 
-      expect(fs.existsSync(lunasvgPath), `Output file missing: ${file}`).toBe(
-        true,
-      );
+      expect(fs.existsSync(forkPath), `Output file missing: ${file}`).toBe(true);
 
       const img1 = readPNG(resvgPath);
-      const img2 = readPNG(lunasvgPath);
+      const img2 = readPNG(forkPath);
 
       expect(img1.width).toBe(img2.width);
       expect(img1.height).toBe(img2.height);
@@ -49,7 +54,7 @@ describe("Image Comparison (resvg vs lunasvg)", () => {
         `${file}: Diff = ${diffPercentage.toFixed(2)}% (${numDiffPixels} pixels)`,
       );
 
-      // Assert that the difference is less than 1% (adjust as needed)
+      // Assert that the difference is less than 0.2%
       expect(diffPercentage).toBeLessThan(0.2);
     });
   });

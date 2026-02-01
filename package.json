@@ -6,7 +6,7 @@
   "license": "MIT",
   "scripts": {
     "test": "vitest",
-    "convert": "tsx tools/run_convert.ts images/svg images/png-luna && tsx tools/convert.ts images/svg images/png-resvg"
+    "convert": "tsx tools/run_convert.ts images/svg images/png-fork && tsx tools/convert.ts images/svg images/png-resvg && tsx tools/convert_wasm.ts images/svg images/png-luna"
   },
   "devDependencies": {
     "@resvg/resvg-js": "2.6.2",
@@ -16,7 +16,8 @@
     "pixelmatch": "7.1.0",
     "pngjs": "7.0.0",
     "tsx": "4.21.0",
-    "vitest": "4.0.18"
+    "vitest": "4.0.18",
+    "wasm-image-optimization": "1.4.4"
   },
   "repository": "https://github.com/SoraKumo001/lunasvg"
 }

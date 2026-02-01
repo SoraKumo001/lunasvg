@@ -32,6 +32,9 @@ importers:
       vitest:
         specifier: 4.0.18
         version: 4.0.18(@types/node@25.1.0)(tsx@4.21.0)
+      wasm-image-optimization:
+        specifier: 1.4.4
+        version: 1.4.4
 
 packages:
 
@@ -488,6 +491,11 @@ packages:
   magic-string@0.30.21:
     resolution: {integrity: sha512-vd2F4YUyEXKGcLHoq+TEyCjxueSeHnFxyyjNp80yg0XV4vUhnDer/lvvlqM/arB5bXQN5K2/3oinyCRyx8T2CQ==}
 
+  mkdirp@3.0.1:
+    resolution: {integrity: sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==}
+    engines: {node: '>=10'}
+    hasBin: true
+
   nanoid@3.3.11:
     resolution: {integrity: sha512-N8SpfPUnUp1bK+PMYW8qSWdl9U+wwNWI4QKxOYDy9JAro3WMX7p2OeVRF9v+347pnakNevPmiHhNmZ2HbFA76w==}
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
@@ -636,10 +644,16 @@ packages:
       jsdom:
         optional: true
 
+  wasm-image-optimization@1.4.4:
+    resolution: {integrity: sha512-lx3mgBaL1Zg+hjY2y1pwklWrTAyeF9UIFR0K54pxZvmr9L+M+sUwLM4EAWXFnUf/WG8PNcq+vUq8OMqs3vgfig==}
+
   why-is-node-running@2.3.0:
     resolution: {integrity: sha512-hUrmaWBdVDcxvYqnyh09zunKzROWjbZTiNy8dBEjkS7ehEDQibXJ7XvlmtbwuTclUiIyN+CyXQD4Vmko8fNm8w==}
     engines: {node: '>=8'}
     hasBin: true
+
+  worker-lib@2.0.8:
+    resolution: {integrity: sha512-nMx5ut10AaJZ1jf/4OJmIae9vvRP+Q134tWZ6h/TAjDhSeIHaRPH9SCuN0Wmacs3nZMZNzEQEA7hCGiQ68cHTg==}
 
 snapshots:
 
@@ -967,6 +981,8 @@ snapshots:
     dependencies:
       '@jridgewell/sourcemap-codec': 1.5.5
 
+  mkdirp@3.0.1: {}
+
   nanoid@3.3.11: {}
 
   obug@2.1.1: {}
@@ -1100,7 +1116,14 @@ snapshots:
       - tsx
       - yaml
 
+  wasm-image-optimization@1.4.4:
+    dependencies:
+      mkdirp: 3.0.1
+      worker-lib: 2.0.8
+
   why-is-node-running@2.3.0:
     dependencies:
       siginfo: 2.0.0
       stackback: 0.0.2
+
+  worker-lib@2.0.8: {}
