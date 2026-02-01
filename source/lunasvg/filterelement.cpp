@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstring>
 #include <algorithm>
+#include <array>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -13,6 +14,15 @@
 namespace lunasvg {
 
 // --- Color Space Conversion Helpers ---
+static const auto srgbToLinearTable = []() {
+    std::array<float, 256> table;
+    for(int i = 0; i < 256; ++i) {
+        float c = i / 255.f;
+        table[i] = (c <= 0.04045f) ? (c / 12.92f) : std::pow((c + 0.055f) / 1.055f, 2.4f);
+    }
+    return table;
+}();
+
 static inline float toLinear(float c) {
     return (c <= 0.04045f) ? (c / 12.92f) : std::pow((c + 0.055f) / 1.055f, 2.4f);
 }
@@ -39,8 +49,14 @@ std::shared_ptr<FilterImage> FilterImage::fromCanvas(const Canvas& canvas) {
         const uint8_t* src_row = data + y * stride;
         FilterPixel* dst_row = dst + y * w;
         for(int x = 0; x < w; ++x) {
-            float a = src_row[x*4 + 3] / 255.f;
-            if(a > 0) {
+            uint8_t alpha = src_row[x*4 + 3];
+            if(alpha == 255) {
+                dst_row[x].r = srgbToLinearTable[src_row[x*4 + 2]];
+                dst_row[x].g = srgbToLinearTable[src_row[x*4 + 1]];
+                dst_row[x].b = srgbToLinearTable[src_row[x*4 + 0]];
+                dst_row[x].a = 1.0f;
+            } else if(alpha > 0) {
+                float a = alpha / 255.f;
                 float invA = 1.f / a;
                 dst_row[x].r = toLinear((src_row[x*4 + 2] / 255.f) * invA) * a;
                 dst_row[x].g = toLinear((src_row[x*4 + 1] / 255.f) * invA) * a;
@@ -63,8 +79,13 @@ std::shared_ptr<Canvas> FilterImage::toCanvas(const Rect& extents) const {
         const FilterPixel* src_row = src + y * m_width;
         for(int x = 0; x < m_width; ++x) {
             const auto& p = src_row[x];
-            float a = std::clamp(p.a, 0.f, 1.f);
-            if(a > 0.0001f) {
+            float a = p.a;
+            if(a >= 1.0f) {
+                dst_row[x*4 + 3] = 255;
+                dst_row[x*4 + 2] = toByte(toSRGB(std::clamp(p.r, 0.f, 1.f)));
+                dst_row[x*4 + 1] = toByte(toSRGB(std::clamp(p.g, 0.f, 1.f)));
+                dst_row[x*4 + 0] = toByte(toSRGB(std::clamp(p.b, 0.f, 1.f)));
+            } else if(a > 0.0001f) {
                 float invA = 1.f / a;
                 dst_row[x*4 + 3] = toByte(a);
                 dst_row[x*4 + 2] = toByte(toSRGB(std::clamp(p.r * invA, 0.f, 1.f)) * a);
@@ -178,9 +199,11 @@ void SVGFeOffsetElement::render(FilterContext& context) const {
     for(int y = 0; y < h; y++) {
         int sy = y - oy;
         if(sy < 0 || sy >= h) continue;
+        const FilterPixel* src_row = src + sy * w;
+        FilterPixel* dst_row = dst + y * w;
         for(int x = 0; x < w; x++) {
             int sx = x - ox;
-            if(sx >= 0 && sx < w) dst[y * w + x] = src[sy * w + sx];      
+            if(sx >= 0 && sx < w) dst_row[x] = src_row[sx];      
         }
     }
     context.addResult(this->result().value(), result);
@@ -295,7 +318,7 @@ void SVGFeColorMatrixElement::render(FilterContext& context) const {
         float cosTheta = std::cos(theta), sinTheta = std::sin(theta);
         float m_h[] = { 0.213f + cosTheta*0.787f - sinTheta*0.213f, 0.715f - cosTheta*0.715f - sinTheta*0.715f, 0.072f - cosTheta*0.072f + sinTheta*0.928f, 0, 0,
                         0.213f - cosTheta*0.213f + sinTheta*0.143f, 0.715f + cosTheta*0.285f + sinTheta*0.140f, 0.072f - cosTheta*0.072f - sinTheta*0.283f, 0, 0,
-                        0.213f - cosTheta*0.213f - sinTheta*0.787f, 0.715f - cosTheta*0.715f + std::sin(theta)*0.715f, 0.072f + cosTheta*0.928f + sinTheta*0.072f, 0, 0,
+                        0.213f - cosTheta*0.213f - sinTheta*0.787f, 0.715f - cosTheta*0.715f + sinTheta*0.715f, 0.072f + cosTheta*0.928f + sinTheta*0.072f, 0, 0,
                         0, 0, 0, 1, 0 };
         std::memcpy(m, m_h, 20 * sizeof(float));
     } else if(matrix_type == ColorMatrixType::LuminanceToAlpha) {
