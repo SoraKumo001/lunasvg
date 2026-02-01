@@ -2,7 +2,6 @@
   "name": "lunasvg",
   "version": "1.0.0",
   "main": "index.js",
-  "repository": "https://github.com/sammycage/lunasvg",
   "author": "SoraKumo <info@croud.jp>",
   "license": "MIT",
   "scripts": {
@@ -18,5 +17,6 @@
     "pngjs": "7.0.0",
     "tsx": "4.21.0",
     "vitest": "4.0.18"
-  }
+  },
+  "repository": "https://github.com/SoraKumo001/lunasvg"
 }

@@ -9,17 +9,17 @@ LunaSVG is a lightweight C++ library for rendering and manipulating Scalable Vec
 *   **feDropShadow Support**: Added native support for the `feDropShadow` filter primitive.
 *   **High Fidelity Rendering**: Tuned to produce results that closely match industry-standard renderers like `resvg`.
 
-## Comparison: resvg vs. LunaSVG (This Fork)
+## Comparison: SVG vs. resvg vs. LunaSVG (This Fork)
 
-The following table compares the output of `resvg` (standard) and `LunaSVG` with the new high-precision filter pipeline.
+The following table compares the original SVG source with the output of `resvg` (industry standard) and `LunaSVG` with our new high-precision pipeline.
 
-| Filter Example | resvg (Standard) | LunaSVG (This Fork) |
-| :--- | :---: | :---: |
-| **Gaussian Blur** | ![resvg-blur](images/png-resvg/blur.png) | ![luna-blur](images/png-luna/blur.png) |
-| **Color Matrix** | ![resvg-matrix](images/png-resvg/color-matrix.png) | ![luna-matrix](images/png-luna/color-matrix.png) |
-| **Arithmetic Composite** | ![resvg-comp](images/png-resvg/composite.png) | ![luna-comp](images/png-luna/composite.png) |
-| **Drop Shadow** | ![resvg-shadow](images/png-resvg/drop-shadow.png) | ![luna-shadow](images/png-luna/drop-shadow.png) |
-| **Complex OGP** | ![resvg-ogp](images/png-resvg/ogp.png) | ![luna-ogp](images/png-luna/ogp.png) |
+| Filter Example | Original SVG Source | resvg (Standard) | LunaSVG (This Fork) |
+| :--- | :---: | :---: | :---: |
+| **Gaussian Blur** | ![svg-blur](images/svg/blur.svg) | ![resvg-blur](images/png-resvg/blur.png) | ![luna-blur](images/png-luna/blur.png) |
+| **Color Matrix** | ![svg-matrix](images/svg/color-matrix.svg) | ![resvg-matrix](images/png-resvg/color-matrix.png) | ![luna-matrix](images/png-luna/color-matrix.png) |
+| **Arithmetic Composite** | ![svg-comp](images/svg/composite.svg) | ![resvg-comp](images/png-resvg/composite.png) | ![luna-comp](images/png-luna/composite.png) |
+| **Drop Shadow** | ![svg-shadow](images/svg/drop-shadow.svg) | ![resvg-shadow](images/png-resvg/drop-shadow.png) | ![luna-shadow](images/png-luna/drop-shadow.png) |
+| **Complex OGP** | ![svg-ogp](images/svg/ogp.svg) | ![resvg-ogp](images/png-resvg/ogp.png) | ![luna-ogp](images/png-luna/ogp.png) |
 
 ## Basic Usage (C++)
 
