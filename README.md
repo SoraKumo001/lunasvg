@@ -1,6 +1,8 @@
 # LunaSVG (High-Precision Filter Fork)
 
-LunaSVG is a lightweight C++ library for rendering and manipulating Scalable Vector Graphics (SVG) files. This fork features a **completely overhauled high-precision filter pipeline**.
+LunaSVG is a lightweight C++ library for rendering and manipulating Scalable Vector Graphics (SVG) files. 
+
+This is a fork of the original [sammycage/lunasvg](https://github.com/sammycage/lunasvg) repository, featuring a **completely overhauled high-precision filter pipeline**.
 
 ## Key Improvements in this Fork
 
