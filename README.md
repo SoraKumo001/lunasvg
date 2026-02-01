@@ -20,7 +20,7 @@ The following table compares the original SVG source with the output of `resvg` 
 | **Gaussian Blur**        |      ![svg-blur](images/svg/blur.svg)      |      ![resvg-blur](images/png-resvg/blur.png)      |      ![luna-blur](images/png-luna/blur.png)      |
 | **Color Matrix**         | ![svg-matrix](images/svg/color-matrix.svg) | ![resvg-matrix](images/png-resvg/color-matrix.png) | ![luna-matrix](images/png-luna/color-matrix.png) |
 | **Arithmetic Composite** |   ![svg-comp](images/svg/composite.svg)    |   ![resvg-comp](images/png-resvg/composite.png)    |   ![luna-comp](images/png-luna/composite.png)    |
-| **Drop Shadow**          | ![svg-shadow](images/svg/drop-shadow.svg)  | ![resvg-shadow](images/png-resvg/drop-shadow.png?) | ![luna-shadow](images/png-luna/drop-shadow.png?) |
+| **Drop Shadow**          | ![svg-shadow](images/svg/drop-shadow.svg)  | ![resvg-shadow](images/png-resvg/drop-shadow.png)  | ![luna-shadow](images/png-luna/drop-shadow.png)  |
 | **Complex OGP**          |       ![svg-ogp](images/svg/ogp.svg)       |       ![resvg-ogp](images/png-resvg/ogp.png)       |       ![luna-ogp](images/png-luna/ogp.png)       |
 
 ## Basic Usage (C++)
